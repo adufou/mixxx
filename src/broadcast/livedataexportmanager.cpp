@@ -210,7 +210,16 @@ void LiveDataExportManager::handleNewTrackLoaded(const QString& group, TrackPoin
     pState->waveformConnection = connect(pTrack.get(),
             &Track::waveformUpdated,
             this,
-            [this, group, pTrack]() { sendTrackLoaded(group, pTrack); });
+            [this, group, pTrack]() {
+                // Guard against a resend for a track that's already been
+                // swapped out on this deck (e.g. a cross-thread signal
+                // queued just before the deck loaded a new track).
+                DeckExportState* pState = findDeckByGroup(group);
+                if (!pState || pState->pDeck->getLoadedTrack() != pTrack) {
+                    return;
+                }
+                sendTrackLoaded(group, pTrack);
+            });
 
     sendTrackLoaded(group, pTrack);
     CoverArtCache::requestTrackCover(pState->pDeck, pTrack);
@@ -252,6 +261,13 @@ void LiveDataExportManager::sendTrackLoaded(const QString& group, TrackPointer p
                 duration > 0.0 ? (frameCount / duration) : 0.0;
         obj[QStringLiteral("waveform_low_mid_high_base64")] =
                 QString::fromLatin1(raw.toBase64());
+    } else {
+        // Waveform not analyzed yet. Send explicit nulls rather than omitting
+        // the keys, so a receiver can tell "not ready" apart from "field
+        // missing" instead of holding onto a previous track's waveform.
+        obj[QStringLiteral("waveform_frame_count")] = 0;
+        obj[QStringLiteral("waveform_sample_rate")] = 0.0;
+        obj[QStringLiteral("waveform_low_mid_high_base64")] = QJsonValue();
     }
 
     writeLine(QJsonDocument(obj).toJson(QJsonDocument::Compact) + '\n');
