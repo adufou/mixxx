@@ -76,6 +76,7 @@ class LiveDataExportManager : public QObject {
     void writeLine(const QByteArray& line);
     void handleNewTrackLoaded(const QString& group, TrackPointer pTrack);
     void sendTrackLoaded(const QString& group, TrackPointer pTrack);
+    void scheduleWaveformRetry(const QString& group, TrackPointer pTrack, int attemptsRemaining);
     DeckExportState* findDeckByGroup(const QString& group);
     DeckExportState* findDeckByRequester(const QObject* pRequester);
 

@@ -22,6 +22,13 @@ const QString kPrefGroup = QStringLiteral("[LiveDataExport]");
 constexpr bool kDefaultEnabled = false;
 constexpr int kDefaultPort = 9090;
 constexpr int kLevelsIntervalMs = 8; // ~120 Hz
+// Safety net for the case where a track's waveform arrives via an async
+// analysis-DB fetch (e.g. after the Track object got evicted from
+// GlobalTrackCache and reloaded) rather than a live analyzer run: the
+// waveformUpdated resend hookup can race with that fetch, so poll briefly
+// as a backstop instead of relying solely on the signal.
+constexpr int kWaveformRetryIntervalMs = 250;
+constexpr int kWaveformRetryMaxAttempts = 20; // ~5s
 // Don't let a stalled client's write buffer grow without bound.
 constexpr qint64 kMaxSocketBacklogBytes = 1 << 20; // 1 MiB
 
@@ -223,7 +230,35 @@ void LiveDataExportManager::handleNewTrackLoaded(const QString& group, TrackPoin
             });
 
     sendTrackLoaded(group, pTrack);
+    const ConstWaveformPointer pWaveform = pTrack->getWaveform();
+    if (!pWaveform || pWaveform->getDataSize() == 0) {
+        scheduleWaveformRetry(group, pTrack, kWaveformRetryMaxAttempts);
+    }
     CoverArtCache::requestTrackCover(pState->pDeck, pTrack);
+}
+
+void LiveDataExportManager::scheduleWaveformRetry(
+        const QString& group, TrackPointer pTrack, int attemptsRemaining) {
+    if (attemptsRemaining <= 0) {
+        return;
+    }
+    QTimer::singleShot(kWaveformRetryIntervalMs, this, [this, group, pTrack, attemptsRemaining]() {
+        if (!m_enabled) {
+            return;
+        }
+        DeckExportState* pState = findDeckByGroup(group);
+        if (!pState || pState->pDeck->getLoadedTrack() != pTrack) {
+            // Deck moved on to another track; that load's own resend path
+            // covers it now.
+            return;
+        }
+        const ConstWaveformPointer pWaveform = pTrack->getWaveform();
+        if (pWaveform && pWaveform->getDataSize() > 0) {
+            sendTrackLoaded(group, pTrack);
+            return;
+        }
+        scheduleWaveformRetry(group, pTrack, attemptsRemaining - 1);
+    });
 }
 
 void LiveDataExportManager::sendTrackLoaded(const QString& group, TrackPointer pTrack) {
