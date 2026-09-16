@@ -60,6 +60,7 @@ class LiveDataExportManager : public QObject {
     struct DeckExportState {
         QString group;
         BaseTrackPlayer* pDeck = nullptr;
+        std::unique_ptr<ControlProxy> pVolume;
         std::unique_ptr<ControlProxy> pEqLow;
         std::unique_ptr<ControlProxy> pEqMid;
         std::unique_ptr<ControlProxy> pEqHigh;

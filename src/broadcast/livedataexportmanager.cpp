@@ -63,6 +63,7 @@ LiveDataExportManager::LiveDataExportManager(
         auto pState = std::make_unique<DeckExportState>();
         pState->group = group;
         pState->pDeck = pDeck;
+        pState->pVolume = std::make_unique<ControlProxy>(group, QStringLiteral("volume"));
         pState->pEqLow = std::make_unique<ControlProxy>(effectGroup, QStringLiteral("parameter1"));
         pState->pEqMid = std::make_unique<ControlProxy>(effectGroup, QStringLiteral("parameter2"));
         pState->pEqHigh = std::make_unique<ControlProxy>(effectGroup, QStringLiteral("parameter3"));
@@ -308,6 +309,7 @@ void LiveDataExportManager::sendLiveLevels() {
         deckObj[QStringLiteral("pos")] = pState->pVisualPlayPosition
                 ? pState->pVisualPlayPosition->getEnginePlayPos()
                 : -1.0;
+        deckObj[QStringLiteral("volume")] = pState->pVolume->get();
         deckObj[QStringLiteral("eq_low")] = pState->pEqLow->get();
         deckObj[QStringLiteral("eq_mid")] = pState->pEqMid->get();
         deckObj[QStringLiteral("eq_high")] = pState->pEqHigh->get();
