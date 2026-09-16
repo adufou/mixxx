@@ -226,7 +226,6 @@ void LiveDataExportManager::sendTrackLoaded(const QString& group, TrackPointer p
     obj[QStringLiteral("deck")] = group;
     obj[QStringLiteral("artist")] = pTrack->getArtist();
     obj[QStringLiteral("title")] = pTrack->getTitle();
-    obj[QStringLiteral("album")] = pTrack->getAlbum();
 
     const ConstWaveformPointer pWaveform = pTrack->getWaveform();
     if (pWaveform && pWaveform->getDataSize() > 0) {
