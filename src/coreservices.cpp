@@ -10,6 +10,7 @@
 #ifdef __BROADCAST__
 #include "broadcast/broadcastmanager.h"
 #endif
+#include "broadcast/livedataexportmanager.h"
 #include "control/controlindicatortimer.h"
 #include "controllers/controllermanager.h"
 #include "controllers/keyboard/keyboardeventfilter.h"
@@ -565,6 +566,10 @@ void CoreServices::initialize(QApplication* pApp) {
     CoverArtCache::createInstance();
     Clipboard::createInstance();
 
+    // Depends on PlayerManager (deck signals/EQ controls) and CoverArtCache.
+    m_pLiveDataExportManager = std::make_shared<LiveDataExportManager>(
+            pConfig, m_pPlayerManager.get());
+
     m_pTrackCollectionManager = std::make_shared<TrackCollectionManager>(
             this,
             pConfig,
@@ -771,7 +776,8 @@ std::shared_ptr<QDialog> CoreServices::makeDlgPreferences() const {
             getVinylControlManager(),
             getEffectsManager(),
             getSettingsManager(),
-            getLibrary());
+            getLibrary(),
+            getLiveDataExportManager());
     return pDlgPreferences;
 }
 
@@ -806,6 +812,10 @@ void CoreServices::finalize() {
     qDebug() << t.elapsed(false).debugMillisWithUnit() << "deleting VinylControlManager";
     CLEAR_AND_CHECK_DELETED(m_pVCManager);
 #endif
+
+    // Depends on PlayerManager and CoverArtCache.
+    qDebug() << t.elapsed(false).debugMillisWithUnit() << "deleting LiveDataExportManager";
+    CLEAR_AND_CHECK_DELETED(m_pLiveDataExportManager);
 
     // CoverArtCache is fairly independent of everything else.
     CoverArtCache::destroy();

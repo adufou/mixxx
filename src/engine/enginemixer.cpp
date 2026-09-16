@@ -11,6 +11,7 @@
 #include "engine/enginebuffer.h"
 #include "engine/enginedelay.h"
 #include "engine/enginetalkoverducking.h"
+#include "engine/enginelivebandlevels.h"
 #include "engine/enginevumeter.h"
 #include "engine/engineworkerscheduler.h"
 #include "engine/enginexfader.h"
@@ -119,6 +120,9 @@ EngineMixer::EngineMixer(
     // VU meter:
     m_pVumeter = new EngineVuMeter(kMainGroup, kLegacyGroup);
 
+    // Live 3-band master mix levels (for external data export):
+    m_pLiveBandLevels = new EngineLiveBandLevels(kMainGroup);
+
     m_pMainDelay = new EngineDelay(ConfigKey(group, "delay"));
     m_pHeadDelay = new EngineDelay(ConfigKey(group, "headDelay"));
     m_pBoothDelay = new EngineDelay(ConfigKey(group, "boothDelay"));
@@ -219,6 +223,7 @@ EngineMixer::~EngineMixer() {
     delete m_pHeadGain;
     delete m_pTalkoverDucking;
     delete m_pVumeter;
+    delete m_pLiveBandLevels;
     delete m_pEngineSideChain;
     delete m_pMainDelay;
     delete m_pHeadDelay;
@@ -809,6 +814,9 @@ void EngineMixer::process(const int iBufferSize) {
         // main balance and talkover is reflected in the VU meter.
         if (m_pVumeter != nullptr) {
             m_pVumeter->process(m_main.data(), iBufferSize);
+        }
+        if (m_pLiveBandLevels != nullptr) {
+            m_pLiveBandLevels->process(m_main.data(), iBufferSize);
         }
     }
 

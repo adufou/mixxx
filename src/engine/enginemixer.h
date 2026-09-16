@@ -19,6 +19,7 @@
 
 class EngineWorkerScheduler;
 class EngineVuMeter;
+class EngineLiveBandLevels;
 class ControlPotmeter;
 class ControlPushButton;
 class EngineSideChain;
@@ -306,6 +307,7 @@ class EngineMixer : public QObject, public AudioSource {
     EngineDelay* m_pLatencyCompensationDelay;
 
     EngineVuMeter* m_pVumeter;
+    EngineLiveBandLevels* m_pLiveBandLevels;
     EngineSideChain* m_pEngineSideChain;
 
     ControlPotmeter* m_pCrossfader;

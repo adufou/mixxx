@@ -742,6 +742,7 @@ add_library(mixxx-lib STATIC EXCLUDE_FROM_ALL
   src/audio/signalinfo.cpp
   src/audio/streaminfo.cpp
   src/audio/types.cpp
+  src/broadcast/livedataexportmanager.cpp
   src/control/control.cpp
   src/control/controlaudiotaperpot.cpp
   src/control/controlbehavior.cpp
@@ -898,6 +899,7 @@ add_library(mixxx-lib STATIC EXCLUDE_FROM_ALL
   src/engine/effects/engineeffectsmanager.cpp
   src/engine/enginebuffer.cpp
   src/engine/enginedelay.cpp
+  src/engine/enginelivebandlevels.cpp
   src/engine/enginemixer.cpp
   src/engine/engineobject.cpp
   src/engine/enginepregain.cpp
@@ -1097,6 +1099,8 @@ add_library(mixxx-lib STATIC EXCLUDE_FROM_ALL
   src/preferences/dialog/dlgprefkeydlg.ui
   src/preferences/dialog/dlgpreflibrary.cpp
   src/preferences/dialog/dlgpreflibrarydlg.ui
+  src/preferences/dialog/dlgpreflivedataexport.cpp
+  src/preferences/dialog/dlgpreflivedataexportdlg.ui
   src/preferences/dialog/dlgprefmixer.cpp
   src/preferences/dialog/dlgprefmixerdlg.ui
   src/preferences/dialog/dlgprefrecord.cpp

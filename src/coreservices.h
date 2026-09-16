@@ -16,6 +16,7 @@ class RecordingManager;
 #ifdef __BROADCAST__
 class BroadcastManager;
 #endif
+class LiveDataExportManager;
 class ControllerManager;
 class VinylControlManager;
 class TrackCollectionManager;
@@ -68,6 +69,10 @@ class CoreServices : public QObject {
         return m_pBroadcastManager;
     }
 #endif
+
+    std::shared_ptr<LiveDataExportManager> getLiveDataExportManager() const {
+        return m_pLiveDataExportManager;
+    }
 
     std::shared_ptr<ControllerManager> getControllerManager() const {
         return m_pControllerManager;
@@ -129,6 +134,7 @@ class CoreServices : public QObject {
 #ifdef __BROADCAST__
     std::shared_ptr<BroadcastManager> m_pBroadcastManager;
 #endif
+    std::shared_ptr<LiveDataExportManager> m_pLiveDataExportManager;
     std::shared_ptr<ControllerManager> m_pControllerManager;
 
     std::shared_ptr<VinylControlManager> m_pVCManager;
