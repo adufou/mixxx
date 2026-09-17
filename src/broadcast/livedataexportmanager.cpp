@@ -80,6 +80,14 @@ LiveDataExportManager::LiveDataExportManager(
                 effectGroup, QStringLiteral("button_parameter2"));
         pState->pKillHigh = std::make_unique<ControlProxy>(
                 effectGroup, QStringLiteral("button_parameter3"));
+        // "bpm" reflects the rate-adjusted, actually-playing tempo (as
+        // opposed to "file_bpm"/"local_bpm", the track's analyzed tempo).
+        pState->pBpm = std::make_unique<ControlProxy>(group, QStringLiteral("bpm"));
+        // Fraction (0..1) into the current beat, already accounting for
+        // scratching, looping and tempo/rate changes -- use this for
+        // beat-phase sync instead of re-deriving it from bpm + playpos.
+        pState->pBeatDistance = std::make_unique<ControlProxy>(
+                group, QStringLiteral("beat_distance"));
         pState->pVisualPlayPosition = VisualPlayPosition::getVisualPlayPosition(group);
 
         connect(pDeck,
@@ -351,6 +359,8 @@ void LiveDataExportManager::sendLiveLevels() {
         deckObj[QStringLiteral("kill_low")] = pState->pKillLow->toBool();
         deckObj[QStringLiteral("kill_mid")] = pState->pKillMid->toBool();
         deckObj[QStringLiteral("kill_high")] = pState->pKillHigh->toBool();
+        deckObj[QStringLiteral("bpm")] = pState->pBpm->get();
+        deckObj[QStringLiteral("beat_distance")] = pState->pBeatDistance->get();
         decksObj[pState->group] = deckObj;
     }
 

@@ -67,6 +67,8 @@ class LiveDataExportManager : public QObject {
         std::unique_ptr<ControlProxy> pKillLow;
         std::unique_ptr<ControlProxy> pKillMid;
         std::unique_ptr<ControlProxy> pKillHigh;
+        std::unique_ptr<ControlProxy> pBpm;
+        std::unique_ptr<ControlProxy> pBeatDistance;
         QSharedPointer<VisualPlayPosition> pVisualPlayPosition;
         QMetaObject::Connection waveformConnection;
     };
