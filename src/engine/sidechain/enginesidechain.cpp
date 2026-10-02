@@ -10,9 +10,11 @@
 
 #include <QtDebug>
 
+#include "control/controlobject.h"
 #include "engine/engine.h"
 #include "engine/sidechain/sidechainworker.h"
 #include "moc_enginesidechain.cpp"
+#include "recording/defs_recording.h"
 #include "util/counter.h"
 #include "util/event.h"
 #include "util/sample.h"
@@ -27,7 +29,15 @@ EngineSideChain::EngineSideChain(
           m_bStopThread(false),
           m_sampleFifo(SIDECHAIN_BUFFER_SIZE),
           m_pWorkBuffer(SampleUtil::alloc(SIDECHAIN_BUFFER_SIZE)),
-          m_pSidechainMix(sidechainMix) {
+          m_pSidechainMix(sidechainMix),
+          m_framesWritten(0),
+          m_framesRead(0),
+          m_pFramesWritten(std::make_unique<ControlObject>(
+                  ConfigKey(RECORDING_PREF_KEY, "sidechain_frames_written"))),
+          m_pFramesRead(std::make_unique<ControlObject>(
+                  ConfigKey(RECORDING_PREF_KEY, "sidechain_frames_read"))) {
+    m_pFramesWritten->setReadOnly();
+    m_pFramesRead->setReadOnly();
     // We use HighPriority to prevent starvation by lower-priority processes (Qt
     // main thread, analysis, etc.). This used to be LowPriority but that is not
     // a suitable choice since we do semi-realtime tasks
@@ -83,6 +93,10 @@ void EngineSideChain::writeSamples(const CSAMPLE* pBuffer, int iFrames) {
     if (numSamplesWritten != numSamples) {
         Counter("EngineSideChain::writeSamples buffer overrun").increment();
     }
+    // Count only what made it into the FIFO, so the stream position stays
+    // consistent with what the workers (e.g. the recorder) actually receive.
+    m_framesWritten += numSamplesWritten / mixxx::kEngineChannelCount;
+    m_pFramesWritten->forceSet(static_cast<double>(m_framesWritten));
 
     if (m_sampleFifo.writeAvailable() < SIDECHAIN_BUFFER_SIZE / 5) {
         // Signal to the sidechain that samples are available.
@@ -115,6 +129,8 @@ void EngineSideChain::run() {
             foreach (SideChainWorker* pWorker, m_workers) {
                 pWorker->process(m_pWorkBuffer, samples_read);
             }
+            m_framesRead += samples_read / mixxx::kEngineChannelCount;
+            m_pFramesRead->forceSet(static_cast<double>(m_framesRead));
         }
 
         // Check to see if we're supposed to exit/stop this thread.

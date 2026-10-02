@@ -1,5 +1,6 @@
 #include "engine/sidechain/enginerecord.h"
 
+#include "control/controlobject.h"
 #include "control/controlproxy.h"
 #include "encoder/encoder.h"
 #include "mixer/playerinfo.h"
@@ -15,11 +16,16 @@ EngineRecord::EngineRecord(UserSettingsPointer pConfig)
         : m_pConfig(pConfig),
           m_sampleRateControl(QStringLiteral("[App]"), QStringLiteral("samplerate")),
           m_frames(0),
+          m_sideChainFramesRead(QStringLiteral(RECORDING_PREF_KEY),
+                  QStringLiteral("sidechain_frames_read")),
+          m_pFileStartFrame(std::make_unique<ControlObject>(
+                  ConfigKey(RECORDING_PREF_KEY, "file_start_frame"))),
           m_recordedDuration(0),
           m_iMetaDataLife(0),
           m_cueTrack(0),
           m_bCueIsEnabled(false) {
     m_pRecReady = new ControlProxy(RECORDING_PREF_KEY, "status", this);
+    m_pFileStartFrame->setReadOnly();
     m_sampleRate = mixxx::audio::SampleRate::fromDouble(m_sampleRateControl.get());
 }
 
@@ -135,6 +141,7 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const int iBufferSize) {
             emit isRecording(false, false);
         } else if (openFile()) {
             Event::start(tag);
+            resetFrames();
             qDebug("Setting record flag to: ON");
             m_pRecReady->set(RECORD_ON);
             emit isRecording(true, false);  // will notify the RecordingManager
@@ -142,11 +149,6 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const int iBufferSize) {
             // Since we just started recording, timeout and clear the metadata.
             m_iMetaDataLife = kMetaDataLifeTimeout;
             m_pCurrentTrack.reset();
-
-            // clean frames counting and get current sample rate.
-            m_frames = 0;
-            m_sampleRate = mixxx::audio::SampleRate::fromDouble(m_sampleRateControl.get());
-            m_recordedDuration = 0;
 
             if (m_bCueIsEnabled) {
                 openCueFile();
@@ -169,17 +171,13 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const int iBufferSize) {
         updateFromPreferences();  // Update file location from preferences.
         if (openFile()) {
             qDebug() << "Splitting to a new file: "<< m_fileName;
+            resetFrames();
             m_pRecReady->set(RECORD_ON);
             emit isRecording(true, false);  // will notify the RecordingManager
 
             // Since we just started recording, timeout and clear the metadata.
             m_iMetaDataLife = kMetaDataLifeTimeout;
             m_pCurrentTrack.reset();
-
-            // clean frames counting and get current sample rate.
-            m_frames = 0;
-            m_sampleRate = mixxx::audio::SampleRate::fromDouble(m_sampleRateControl.get());
-            m_recordedDuration = 0;
 
             if (m_bCueIsEnabled) {
                 openCueFile();
@@ -221,6 +219,15 @@ void EngineRecord::process(const CSAMPLE* pBuffer, const int iBufferSize) {
             emit durationRecorded(m_recordedDuration);
         }
     }
+}
+
+void EngineRecord::resetFrames() {
+    // clean frames counting and get current sample rate.
+    m_frames = 0;
+    // A new file always starts with the chunk currently being processed.
+    m_pFileStartFrame->forceSet(m_sideChainFramesRead.get());
+    m_sampleRate = mixxx::audio::SampleRate::fromDouble(m_sampleRateControl.get());
+    m_recordedDuration = 0;
 }
 
 QString EngineRecord::getRecordedDurationStr() {

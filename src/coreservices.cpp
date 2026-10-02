@@ -10,7 +10,6 @@
 #ifdef __BROADCAST__
 #include "broadcast/broadcastmanager.h"
 #endif
-#include "broadcast/livedataexportmanager.h"
 #include "control/controlindicatortimer.h"
 #include "controllers/controllermanager.h"
 #include "controllers/keyboard/keyboardeventfilter.h"
@@ -30,6 +29,7 @@
 #ifdef __MODPLUG__
 #include "preferences/dialog/dlgprefmodplug.h"
 #endif
+#include "recording/mixdatarecorder.h"
 #include "skin/skincontrols.h"
 #include "soundio/soundmanager.h"
 #include "sources/soundsourceproxy.h"
@@ -566,8 +566,9 @@ void CoreServices::initialize(QApplication* pApp) {
     CoverArtCache::createInstance();
     Clipboard::createInstance();
 
-    // Depends on PlayerManager (deck signals/EQ controls) and CoverArtCache.
-    m_pLiveDataExportManager = std::make_shared<LiveDataExportManager>(
+    // Depends on RecordingManager (recording controls), PlayerManager (deck
+    // signals/EQ controls) and CoverArtCache.
+    m_pMixDataRecorder = std::make_shared<MixDataRecorder>(
             pConfig, m_pPlayerManager.get());
 
     m_pTrackCollectionManager = std::make_shared<TrackCollectionManager>(
@@ -776,8 +777,7 @@ std::shared_ptr<QDialog> CoreServices::makeDlgPreferences() const {
             getVinylControlManager(),
             getEffectsManager(),
             getSettingsManager(),
-            getLibrary(),
-            getLiveDataExportManager());
+            getLibrary());
     return pDlgPreferences;
 }
 
@@ -813,9 +813,9 @@ void CoreServices::finalize() {
     CLEAR_AND_CHECK_DELETED(m_pVCManager);
 #endif
 
-    // Depends on PlayerManager and CoverArtCache.
-    qDebug() << t.elapsed(false).debugMillisWithUnit() << "deleting LiveDataExportManager";
-    CLEAR_AND_CHECK_DELETED(m_pLiveDataExportManager);
+    // Depends on RecordingManager, PlayerManager and CoverArtCache.
+    qDebug() << t.elapsed(false).debugMillisWithUnit() << "deleting MixDataRecorder";
+    CLEAR_AND_CHECK_DELETED(m_pMixDataRecorder);
 
     // CoverArtCache is fairly independent of everything else.
     CoverArtCache::destroy();

@@ -4,6 +4,7 @@
 #include <QMutex>
 #include <QWaitCondition>
 #include <QList>
+#include <memory>
 
 #include "preferences/usersettings.h"
 #include "soundio/soundmanagerutil.h"
@@ -11,6 +12,7 @@
 #include "util/mutex.h"
 #include "util/types.h"
 
+class ControlObject;
 class SideChainWorker;
 
 class EngineSideChain : public QThread, public AudioDestination {
@@ -50,6 +52,17 @@ class EngineSideChain : public QThread, public AudioDestination {
     QMutex m_waitLock;
     // Allows sleeping until we have samples to process.
     QWaitCondition m_waitForSamples;
+
+    // Total frames pushed into / pulled out of m_sampleFifo since startup,
+    // i.e. positions in the continuous stream of audio the sidechain
+    // receives. Each is only touched by its own thread (engine callback /
+    // sidechain thread) and published as a ControlObject for other threads:
+    // frames_written is where the engine is right now, frames_read (while
+    // workers run) is the stream position of the chunk they're processing.
+    quint64 m_framesWritten;
+    quint64 m_framesRead;
+    std::unique_ptr<ControlObject> m_pFramesWritten;
+    std::unique_ptr<ControlObject> m_pFramesRead;
 
     // Sidechain workers registered with EngineSideChain.
     MMutex m_workerLock;

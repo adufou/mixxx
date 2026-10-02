@@ -2,6 +2,7 @@
 
 #include <QDataStream>
 #include <QFile>
+#include <memory>
 
 #include "audio/types.h"
 #include "control/pollingcontrolproxy.h"
@@ -11,6 +12,7 @@
 #include "preferences/usersettings.h"
 #include "track/track_decl.h"
 
+class ControlObject;
 class ControlProxy;
 
 class EngineRecord : public QObject, public EncoderCallback, public SideChainWorker {
@@ -59,6 +61,11 @@ class EngineRecord : public QObject, public EncoderCallback, public SideChainWor
     bool metaDataHasChanged();
 
     void writeCueLine();
+    // Resets the frame count for a newly opened audio file and publishes
+    // where in the sidechain stream it starts. Must run before the status is
+    // set to RECORD_ON, so that anyone seeing ON also sees the start frame
+    // of the new file.
+    void resetFrames();
 
     UserSettingsPointer m_pConfig;
     EncoderPointer m_pEncoder;
@@ -75,6 +82,16 @@ class EngineRecord : public QObject, public EncoderCallback, public SideChainWor
     PollingControlProxy m_sampleRateControl;
     ControlProxy* m_pRecReady;
     quint64 m_frames;
+    // Sidechain stream position (see EngineSideChain) of the first frame of
+    // the chunk being processed.
+    PollingControlProxy m_sideChainFramesRead;
+    // Sidechain stream position of the first frame of the current audio
+    // file. Together with EngineSideChain's frames_written count this gives
+    // the audio file position of what the engine is producing right now,
+    // which MixDataRecorder stamps its data with. (Our own m_frames lags
+    // that by up to the sidechain FIFO's size, ~0.6 s, and moves in
+    // FIFO-sized jumps.)
+    std::unique_ptr<ControlObject> m_pFileStartFrame;
     mixxx::audio::SampleRate m_sampleRate;
     quint64 m_recordedDuration;
     QString getRecordedDurationStr();

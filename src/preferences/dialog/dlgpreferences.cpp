@@ -8,7 +8,6 @@
 #include <QScrollArea>
 #include <QtGlobal>
 
-#include "broadcast/livedataexportmanager.h"
 #include "controllers/dlgprefcontrollers.h"
 #include "library/library.h"
 #include "library/trackcollectionmanager.h"
@@ -37,7 +36,6 @@
 
 #include "preferences/dialog/dlgprefbeats.h"
 #include "preferences/dialog/dlgprefkey.h"
-#include "preferences/dialog/dlgpreflivedataexport.h"
 #include "preferences/dialog/dlgprefrecord.h"
 #include "preferences/dialog/dlgprefreplaygain.h"
 
@@ -57,8 +55,7 @@ DlgPreferences::DlgPreferences(
         std::shared_ptr<VinylControlManager> pVCManager,
         std::shared_ptr<EffectsManager> pEffectsManager,
         std::shared_ptr<SettingsManager> pSettingsManager,
-        std::shared_ptr<Library> pLibrary,
-        std::shared_ptr<LiveDataExportManager> pLiveDataExportManager)
+        std::shared_ptr<Library> pLibrary)
         : m_allPages(),
           m_pConfig(pSettingsManager->settings()),
           m_pageSizeHint(QSize(0, 0)) {
@@ -213,14 +210,6 @@ DlgPreferences::DlgPreferences(
                           new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type)),
             tr("Recording"),
             "ic_preferences_recording.svg");
-
-    addPageWidget(PreferencesPage(
-                          new DlgPrefLiveDataExport(this,
-                                  m_pConfig,
-                                  pLiveDataExportManager.get()),
-                          new QTreeWidgetItem(contentsTreeWidget, QTreeWidgetItem::Type)),
-            tr("Live Data Export"),
-            "ic_preferences_broadcast.svg");
 
     addPageWidget(PreferencesPage(
                           new DlgPrefBeats(this, m_pConfig),
