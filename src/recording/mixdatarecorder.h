@@ -72,9 +72,14 @@ class MixDataRecorder : public QObject {
         std::unique_ptr<ControlProxy> pBeatDistance;
         QSharedPointer<VisualPlayPosition> pVisualPlayPosition;
         QMetaObject::Connection waveformConnection;
-        // Cover of the currently loaded track, kept so it can be written
-        // into the snapshot at the start of every data file without waiting
-        // for another async CoverArtCache round trip.
+        // Identifies the current load on this deck (0 = nothing loaded yet).
+        // Unique across all decks and incremented on every load, even of
+        // the same track, so a reader can tell loads apart without relying
+        // on artist/title, and match cover_art lines to the right load.
+        quint64 loadId = 0;
+        // Cover of the current load, kept so it can be written into the
+        // snapshot at the start of every data file without waiting for
+        // another async CoverArtCache round trip.
         QImage coverImage;
     };
 
@@ -92,8 +97,8 @@ class MixDataRecorder : public QObject {
     void writeLine(QJsonObject obj);
     void handleNewTrackLoaded(const QString& group, TrackPointer pTrack);
     void writeTrackLoaded(const QString& group, TrackPointer pTrack);
-    void writeTrackLoadedAt(const QString& group, const TrackPointer& pTrack, double t);
-    void writeCoverArt(const QString& group, const QImage& cover, double t);
+    void writeTrackLoadedAt(const DeckState& state, const TrackPointer& pTrack, double t);
+    void writeCoverArt(const DeckState& state, double t);
     void scheduleWaveformRetry(const QString& group, TrackPointer pTrack, int attemptsRemaining);
     DeckState* findDeckByGroup(const QString& group);
     DeckState* findDeckByRequester(const QObject* pRequester);
@@ -110,6 +115,7 @@ class MixDataRecorder : public QObject {
     std::unique_ptr<ControlProxy> m_pMainBandHigh;
 
     std::vector<std::unique_ptr<DeckState>> m_deckStates;
+    quint64 m_lastLoadId;
 
     std::unique_ptr<QTimer> m_pLevelsTimer;
 

@@ -71,6 +71,7 @@ QByteArray lowMidHighOf(const TrackPointer& pTrack) {
 }
 
 QByteArray trackLoadedLine(const QString& group,
+        quint64 loadId,
         const QString& artist,
         const QString& title,
         double duration,
@@ -79,6 +80,7 @@ QByteArray trackLoadedLine(const QString& group,
     QJsonObject obj;
     obj[QStringLiteral("type")] = QStringLiteral("track_loaded");
     obj[QStringLiteral("deck")] = group;
+    obj[QStringLiteral("load_id")] = static_cast<qint64>(loadId);
     obj[QStringLiteral("artist")] = artist;
     obj[QStringLiteral("title")] = title;
     obj[QStringLiteral("t")] = t;
@@ -103,7 +105,7 @@ QByteArray trackLoadedLine(const QString& group,
     return toLine(obj);
 }
 
-QByteArray coverArtLine(const QString& group, const QImage& cover, double t) {
+QByteArray coverArtLine(const QString& group, quint64 loadId, const QImage& cover, double t) {
     QByteArray pngBytes;
     QBuffer buffer(&pngBytes);
     buffer.open(QIODevice::WriteOnly);
@@ -112,6 +114,7 @@ QByteArray coverArtLine(const QString& group, const QImage& cover, double t) {
     QJsonObject obj;
     obj[QStringLiteral("type")] = QStringLiteral("cover_art");
     obj[QStringLiteral("deck")] = group;
+    obj[QStringLiteral("load_id")] = static_cast<qint64>(loadId);
     obj[QStringLiteral("cover_png_base64")] = QString::fromLatin1(pngBytes.toBase64());
     obj[QStringLiteral("t")] = t;
     return toLine(obj);
@@ -137,6 +140,7 @@ MixDataRecorder::MixDataRecorder(
                   QStringLiteral("[Main]"), QStringLiteral("live_band_mid"))),
           m_pMainBandHigh(std::make_unique<ControlProxy>(
                   QStringLiteral("[Main]"), QStringLiteral("live_band_high"))),
+          m_lastLoadId(0),
           m_pLevelsTimer(std::make_unique<QTimer>()),
           m_pWriterContext(std::make_unique<QObject>()),
           m_fileOpen(false),
@@ -308,9 +312,9 @@ void MixDataRecorder::writeSnapshot() {
         if (!pTrack) {
             continue;
         }
-        writeTrackLoadedAt(pState->group, pTrack, 0.0);
+        writeTrackLoadedAt(*pState, pTrack, 0.0);
         if (!pState->coverImage.isNull()) {
-            writeCoverArt(pState->group, pState->coverImage, 0.0);
+            writeCoverArt(*pState, 0.0);
         }
     }
 }
@@ -366,6 +370,7 @@ void MixDataRecorder::handleNewTrackLoaded(const QString& group, TrackPointer pT
     if (!pState) {
         return;
     }
+    pState->loadId = ++m_lastLoadId;
     pState->coverImage = QImage();
 
     QObject::disconnect(pState->waveformConnection);
@@ -416,43 +421,52 @@ void MixDataRecorder::writeTrackLoaded(const QString& group, TrackPointer pTrack
     if (!pTrack || !syncWithRecordingStatus()) {
         return;
     }
-    writeTrackLoadedAt(group, pTrack, recordedSeconds());
+    const DeckState* pState = findDeckByGroup(group);
+    if (!pState) {
+        return;
+    }
+    writeTrackLoadedAt(*pState, pTrack, recordedSeconds());
 }
 
 void MixDataRecorder::writeTrackLoadedAt(
-        const QString& group, const TrackPointer& pTrack, double t) {
+        const DeckState& state, const TrackPointer& pTrack, double t) {
     if (!m_fileOpen) {
         return;
     }
     // Gather the data here, while it's consistent with t; encode it on the
     // writer thread.
     postToWriter([this,
-                         group,
+                         group = state.group,
+                         loadId = state.loadId,
                          artist = pTrack->getArtist(),
                          title = pTrack->getTitle(),
                          duration = pTrack->getDuration(),
                          lowMidHigh = lowMidHighOf(pTrack),
                          t]() {
         if (m_pWriterFile) {
-            m_pWriterFile->write(trackLoadedLine(group, artist, title, duration, lowMidHigh, t));
+            m_pWriterFile->write(trackLoadedLine(
+                    group, loadId, artist, title, duration, lowMidHigh, t));
         }
     });
 }
 
-void MixDataRecorder::writeCoverArt(const QString& group, const QImage& cover, double t) {
+void MixDataRecorder::writeCoverArt(const DeckState& state, double t) {
     if (!m_fileOpen) {
         return;
     }
-    postToWriter([this, group, cover, t]() {
+    postToWriter([this,
+                         group = state.group,
+                         loadId = state.loadId,
+                         cover = state.coverImage,
+                         t]() {
         if (m_pWriterFile) {
-            m_pWriterFile->write(coverArtLine(group, cover, t));
+            m_pWriterFile->write(coverArtLine(group, loadId, cover, t));
         }
     });
 }
 
 void MixDataRecorder::onCoverFound(
         const QObject* pRequester, const CoverInfo& coverInfo, const QPixmap& pixmap) {
-    Q_UNUSED(coverInfo);
     if (pixmap.isNull()) {
         return;
     }
@@ -460,12 +474,19 @@ void MixDataRecorder::onCoverFound(
     if (!pState) {
         return;
     }
+    // Covers arrive asynchronously: after a quick reload, the previous
+    // track's cover can show up after the new track_loaded. Only accept a
+    // cover for the track that is loaded on the deck right now.
+    const TrackPointer pTrack = pState->pDeck->getLoadedTrack();
+    if (!pTrack || pTrack->getLocation() != coverInfo.trackLocation) {
+        return;
+    }
 
     // QPixmap is GUI-thread only; QImage can be encoded on the writer thread.
     pState->coverImage = pixmap.toImage();
 
     if (syncWithRecordingStatus()) {
-        writeCoverArt(pState->group, pState->coverImage, recordedSeconds());
+        writeCoverArt(*pState, recordedSeconds());
     }
 }
 
