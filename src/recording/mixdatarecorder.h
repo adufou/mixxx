@@ -62,6 +62,7 @@ class MixDataRecorder : public QObject {
         QString group;
         BaseTrackPlayer* pDeck = nullptr;
         std::unique_ptr<ControlProxy> pVolume;
+        std::unique_ptr<ControlProxy> pTotalGain;
         std::unique_ptr<ControlProxy> pEqLow;
         std::unique_ptr<ControlProxy> pEqMid;
         std::unique_ptr<ControlProxy> pEqHigh;

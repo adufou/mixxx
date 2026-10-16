@@ -173,6 +173,10 @@ MixDataRecorder::MixDataRecorder(
         pState->group = group;
         pState->pDeck = pDeck;
         pState->pVolume = std::make_unique<ControlProxy>(group, QStringLiteral("volume"));
+        // Pregain knob x ReplayGain correction, as applied by the engine. The
+        // waveform is analyzed from the raw file, so scale it by this to
+        // match what is heard (Mixxx's own waveform widget does the same).
+        pState->pTotalGain = std::make_unique<ControlProxy>(group, QStringLiteral("total_gain"));
         pState->pEqLow = std::make_unique<ControlProxy>(effectGroup, QStringLiteral("parameter1"));
         pState->pEqMid = std::make_unique<ControlProxy>(effectGroup, QStringLiteral("parameter2"));
         pState->pEqHigh = std::make_unique<ControlProxy>(effectGroup, QStringLiteral("parameter3"));
@@ -502,6 +506,7 @@ void MixDataRecorder::writeLevels() {
                 ? pState->pVisualPlayPosition->getEnginePlayPos()
                 : -1.0;
         deckObj[QStringLiteral("volume")] = pState->pVolume->get();
+        deckObj[QStringLiteral("total_gain")] = pState->pTotalGain->get();
         deckObj[QStringLiteral("eq_low")] = pState->pEqLow->get();
         deckObj[QStringLiteral("eq_mid")] = pState->pEqMid->get();
         deckObj[QStringLiteral("eq_high")] = pState->pEqHigh->get();
